@@ -127,6 +127,14 @@ class SignalingBridge:
         request = msg.get('request')
         sender = msg.get('UUID')
 
+        # Debug: log all messages
+        if request:
+            print(f"[Signal] request={request} from={sender[:8] if sender else 'server'}")
+        elif msg.get('sdp'):
+            print(f"[Signal] SDP type={msg.get('type')} from={sender[:8] if sender else '?'}")
+        elif msg.get('candidate'):
+            print(f"[Signal] ICE candidate from={sender[:8] if sender else '?'}")
+
         if request == 'offerSDP':
             # Peer wants us to send them an offer
             print(f"[{sender[:8] if sender else '?'}] Requesting connection...")
