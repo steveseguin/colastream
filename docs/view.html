@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ColaStream - View via VDO.Ninja</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #000;
+            min-height: 100vh;
+            color: #eee;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .video-wrapper {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        video {
+            max-width: 100%;
+            max-height: 100vh;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.95);
+            transition: opacity 0.3s;
+        }
+
+        .overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .logo {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #00d4ff, #00ff88);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+
+        .badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #ff6b6b, #ff8e53);
+            color: #fff;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 30px;
+        }
+
+        .connect-form {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            color: #888;
+            margin-bottom: 6px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            background: rgba(0,0,0,0.5);
+            color: #fff;
+            font-size: 14px;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            background: linear-gradient(135deg, #00d4ff, #00a8cc);
+            color: #000;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,212,255,0.3);
+        }
+
+        .status {
+            text-align: center;
+            margin-top: 16px;
+            font-size: 14px;
+            color: #888;
+        }
+
+        .status.error {
+            color: #ff4757;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-state {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Controls */
+        .controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .video-wrapper:hover .controls {
+            opacity: 1;
+        }
+
+        .control-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+            padding: 0;
+        }
+
+        .control-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .control-btn svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .volume-slider {
+            width: 100px;
+            height: 4px;
+            -webkit-appearance: none;
+            background: rgba(255,255,255,0.3);
+            border-radius: 2px;
+            outline: none;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+        }
+
+        .spacer { flex: 1; }
+
+        .live-badge {
+            background: #ff4757;
+            color: #fff;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            animation: pulse 2s infinite;
+            display: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .stream-id {
+            color: #888;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="video-wrapper" id="videoWrapper">
+        <video id="player" playsinline autoplay></video>
+
+        <div class="overlay" id="overlay">
+            <div class="logo">ColaStream</div>
+            <span class="badge">VDO.Ninja</span>
+
+            <div class="connect-form" id="connectForm">
+                <div class="form-group">
+                    <label for="streamId">Stream ID</label>
+                    <input type="text" id="streamId" placeholder="Enter stream ID">
+                </div>
+                <div class="form-group">
+                    <label for="roomId">Room (optional)</label>
+                    <input type="text" id="roomId" placeholder="Leave empty if not using room">
+                </div>
+                <button onclick="connect()">Watch Stream</button>
+                <div class="status" id="status"></div>
+            </div>
+
+            <div class="loading-state" id="loadingState">
+                <div class="spinner"></div>
+                <div>Connecting to stream...</div>
+            </div>
+        </div>
+
+        <div class="controls" id="controls">
+            <button class="control-btn" onclick="toggleMute()">
+                <svg id="volumeIcon" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                </svg>
+                <svg id="muteIcon" viewBox="0 0 24 24" fill="currentColor" style="display:none;">
+                    <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
+                </svg>
+            </button>
+            <input type="range" class="volume-slider" id="volumeSlider" min="0" max="1" step="0.1" value="1" onchange="setVolume(this.value)">
+
+            <div class="spacer"></div>
+
+            <span class="live-badge" id="liveBadge">LIVE</span>
+            <span class="stream-id" id="streamLabel"></span>
+
+            <button class="control-btn" onclick="toggleFullscreen()">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+                </svg>
+            </button>
+
+            <button class="control-btn" onclick="disconnect()" title="Disconnect">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- VDO.Ninja SDK -->
+    <script src="https://vdo.ninja/sdk/vdoninja-sdk.js"></script>
+
+    <script>
+        let vdoSDK = null;
+        let isConnected = false;
+
+        const player = document.getElementById('player');
+        const overlay = document.getElementById('overlay');
+        const connectForm = document.getElementById('connectForm');
+        const loadingState = document.getElementById('loadingState');
+        const streamIdInput = document.getElementById('streamId');
+        const roomIdInput = document.getElementById('roomId');
+        const statusEl = document.getElementById('status');
+        const liveBadge = document.getElementById('liveBadge');
+        const streamLabel = document.getElementById('streamLabel');
+
+        // Parse URL params
+        function init() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.has('streamid') || params.has('view')) {
+                streamIdInput.value = params.get('streamid') || params.get('view');
+            }
+            if (params.has('room')) {
+                roomIdInput.value = params.get('room');
+            }
+            // Auto-connect if stream ID provided
+            if (streamIdInput.value) {
+                connect();
+            }
+        }
+
+        async function connect() {
+            const streamId = streamIdInput.value.trim();
+            const roomId = roomIdInput.value.trim();
+
+            if (!streamId) {
+                showStatus('Please enter a stream ID', 'error');
+                return;
+            }
+
+            connectForm.style.display = 'none';
+            loadingState.style.display = 'flex';
+            showStatus('');
+
+            try {
+                const sdkOptions = {
+                    streamID: streamId,
+                    debug: false
+                };
+
+                if (roomId) {
+                    sdkOptions.room = roomId;
+                }
+
+                vdoSDK = new VDONinjaSDK(sdkOptions);
+
+                // Handle incoming tracks
+                vdoSDK.addEventListener('track', (event) => {
+                    console.log('Received track:', event.detail);
+                    const track = event.detail.track;
+
+                    if (!player.srcObject) {
+                        player.srcObject = new MediaStream();
+                    }
+                    player.srcObject.addTrack(track);
+                    player.play().catch(() => {});
+
+                    overlay.classList.add('hidden');
+                    liveBadge.style.display = 'inline-block';
+                    streamLabel.textContent = streamId;
+                    isConnected = true;
+                });
+
+                vdoSDK.addEventListener('peerDisconnected', () => {
+                    showStatus('Stream ended', 'error');
+                    disconnect();
+                });
+
+                await vdoSDK.connect();
+                await vdoSDK.quickView({
+                    streamID: streamId,
+                    audio: true,
+                    video: true
+                });
+
+            } catch (e) {
+                console.error('Connection error:', e);
+                showStatus(`Error: ${e.message}`, 'error');
+                connectForm.style.display = 'block';
+                loadingState.style.display = 'none';
+            }
+        }
+
+        function disconnect() {
+            if (vdoSDK) {
+                vdoSDK.disconnect();
+                vdoSDK = null;
+            }
+            player.srcObject = null;
+            overlay.classList.remove('hidden');
+            connectForm.style.display = 'block';
+            loadingState.style.display = 'none';
+            liveBadge.style.display = 'none';
+            streamLabel.textContent = '';
+            isConnected = false;
+        }
+
+        function showStatus(message, type = '') {
+            statusEl.textContent = message;
+            statusEl.className = 'status' + (type ? ' ' + type : '');
+        }
+
+        function toggleMute() {
+            player.muted = !player.muted;
+            document.getElementById('volumeIcon').style.display = player.muted ? 'none' : 'block';
+            document.getElementById('muteIcon').style.display = player.muted ? 'block' : 'none';
+        }
+
+        function setVolume(value) {
+            player.volume = value;
+            player.muted = value == 0;
+            document.getElementById('volumeIcon').style.display = value == 0 ? 'none' : 'block';
+            document.getElementById('muteIcon').style.display = value == 0 ? 'block' : 'none';
+        }
+
+        function toggleFullscreen() {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            } else {
+                document.getElementById('videoWrapper').requestFullscreen();
+            }
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (!isConnected) return;
+            switch (e.key) {
+                case 'm': toggleMute(); break;
+                case 'f': toggleFullscreen(); break;
+            }
+        });
+
+        init();
+    </script>
+</body>
+</html>

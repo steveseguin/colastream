@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ColaStream - WebRTC for Google Colab</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+            min-height: 100vh;
+            color: #eee;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 40px 0;
+        }
+
+        .logo {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #00d4ff, #00ff88);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .tagline {
+            color: #888;
+            font-size: 1.2rem;
+            margin-top: 12px;
+        }
+
+        .options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin-top: 40px;
+        }
+
+        .option-card {
+            background: rgba(255,255,255,0.03);
+            border: 2px solid rgba(255,255,255,0.08);
+            border-radius: 20px;
+            padding: 32px;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .option-card:hover {
+            border-color: rgba(0,212,255,0.3);
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+
+        .option-card.recommended {
+            border-color: rgba(0,255,136,0.3);
+        }
+
+        .option-card.recommended::before {
+            content: 'RECOMMENDED';
+            position: absolute;
+            top: 16px;
+            right: -32px;
+            background: linear-gradient(135deg, #00ff88, #00d4ff);
+            color: #000;
+            padding: 4px 40px;
+            font-size: 10px;
+            font-weight: 700;
+            transform: rotate(45deg);
+        }
+
+        .option-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+
+        .option-card:nth-child(1) .option-icon {
+            background: linear-gradient(135deg, rgba(0,255,136,0.2), rgba(0,212,255,0.2));
+        }
+
+        .option-card:nth-child(2) .option-icon {
+            background: linear-gradient(135deg, rgba(255,107,107,0.2), rgba(255,142,83,0.2));
+        }
+
+        .option-card h2 {
+            font-size: 1.4rem;
+            margin-bottom: 12px;
+        }
+
+        .option-card p {
+            color: #888;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .features {
+            list-style: none;
+            margin-bottom: 24px;
+        }
+
+        .features li {
+            padding: 8px 0;
+            padding-left: 24px;
+            position: relative;
+            color: #aaa;
+            font-size: 14px;
+        }
+
+        .features li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: #00ff88;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 14px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00d4ff, #00a8cc);
+            color: #000;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,212,255,0.3);
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.15);
+        }
+
+        .how-it-works {
+            margin-top: 60px;
+            text-align: center;
+        }
+
+        .how-it-works h2 {
+            font-size: 1.5rem;
+            margin-bottom: 30px;
+            color: #00d4ff;
+        }
+
+        .steps {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            flex-wrap: wrap;
+        }
+
+        .step {
+            text-align: center;
+            max-width: 200px;
+        }
+
+        .step-number {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #00d4ff, #00ff88);
+            color: #000;
+            font-weight: 700;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+        }
+
+        .step h3 {
+            font-size: 1rem;
+            margin-bottom: 8px;
+        }
+
+        .step p {
+            color: #666;
+            font-size: 13px;
+        }
+
+        footer {
+            text-align: center;
+            padding: 40px 20px;
+            color: #444;
+            font-size: 13px;
+        }
+
+        footer a {
+            color: #00d4ff;
+            text-decoration: none;
+        }
+
+        .github-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,255,255,0.05);
+            padding: 10px 20px;
+            border-radius: 30px;
+            margin-top: 20px;
+            color: #888;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .github-link:hover {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">ColaStream</div>
+            <p class="tagline">Stream your webcam to Google Colab for AI processing</p>
+        </header>
+
+        <div class="options">
+            <!-- VDO.Ninja Option -->
+            <div class="option-card recommended">
+                <div class="option-icon">P2P</div>
+                <h2>VDO.Ninja Mode</h2>
+                <p>
+                    Direct P2P streaming using VDO.Ninja's infrastructure.
+                    No tunnels or server setup required!
+                </p>
+                <ul class="features">
+                    <li>Zero configuration needed</li>
+                    <li>No account required</li>
+                    <li>Works behind any firewall</li>
+                    <li>Free TURN servers included</li>
+                </ul>
+                <div class="btn-row">
+                    <a href="publish.html" class="btn btn-primary">Publish</a>
+                    <a href="view.html" class="btn btn-secondary">View</a>
+                </div>
+            </div>
+
+            <!-- MediaMTX Option -->
+            <div class="option-card">
+                <div class="option-icon">SFU</div>
+                <h2>MediaMTX Mode</h2>
+                <p>
+                    Run a full SFU server on Colab with WHIP/WHEP.
+                    Better for multi-viewer scenarios.
+                </p>
+                <ul class="features">
+                    <li>Full media server on Colab</li>
+                    <li>RTSP output for AI pipelines</li>
+                    <li>Multiple simultaneous viewers</li>
+                    <li>Requires cloudflared tunnel</li>
+                </ul>
+                <div class="btn-row">
+                    <a href="whip.html" class="btn btn-primary">Publish</a>
+                    <a href="watch.html" class="btn btn-secondary">View</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="how-it-works">
+            <h2>How It Works</h2>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <h3>Open Colab</h3>
+                    <p>Run the ColaStream notebook to start the receiver</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <h3>Publish Here</h3>
+                    <p>Select your webcam and start streaming</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <h3>Process with AI</h3>
+                    <p>Receive frames in Colab for real-time AI</p>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>
+                Powered by <a href="https://vdo.ninja" target="_blank">VDO.Ninja</a> &
+                <a href="https://github.com/bluenviron/mediamtx" target="_blank">MediaMTX</a>
+            </p>
+            <a href="https://github.com/steveseguin/colastream" class="github-link" target="_blank">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                </svg>
+                View on GitHub
+            </a>
+        </footer>
+    </div>
+</body>
+</html>
