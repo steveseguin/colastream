@@ -14,6 +14,10 @@ import sys
 import aiohttp
 import websockets
 
+# Force unbuffered output
+import functools
+print = functools.partial(print, flush=True)
+
 class SignalingBridge:
     def __init__(self, room_id=None, media_server_url='http://localhost:8889'):
         self.room_id = room_id or 'colastream-' + ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
