@@ -1,0 +1,123 @@
+###############################################
+# MediaMTX Configuration for Google Colab
+#
+# Optimized for running behind NAT with
+# TURN relay for WebRTC connectivity.
+###############################################
+
+# General settings
+logLevel: info
+logDestinations: [stdout]
+
+# Read/write timeout
+readTimeout: 10s
+writeTimeout: 10s
+writeQueueSize: 512
+
+###############################################
+# API Server
+###############################################
+api: yes
+apiAddress: 127.0.0.1:9997
+
+###############################################
+# RTSP Server
+# Used internally for AI frame processing
+###############################################
+rtsp: yes
+rtspAddress: :8554
+protocols: [tcp]
+# TCP only - UDP is typically blocked on Colab
+
+###############################################
+# RTMP Server (disabled by default)
+###############################################
+rtmp: no
+rtmpAddress: :1935
+
+###############################################
+# HLS Server
+# Fallback for browsers without WebRTC
+###############################################
+hls: yes
+hlsAddress: :8888
+hlsAlwaysRemux: yes
+hlsSegmentCount: 3
+hlsSegmentDuration: 1s
+hlsPartDuration: 200ms
+
+###############################################
+# WebRTC Server (WHIP/WHEP)
+# Primary protocol for browser streaming
+###############################################
+webrtc: yes
+webrtcAddress: :8889
+
+# Local ICE candidate settings
+# Empty to avoid advertising internal IPs
+webrtcICEHostNAT1To1IPs: []
+
+# ICE servers for NAT traversal
+# CRITICAL: You need TURN servers for Colab!
+webrtcICEServers2:
+  # STUN for public IP discovery (won't work alone on Colab)
+  - url: stun:stun.l.google.com:19302
+
+  # Free TURN server (for testing only - may be unreliable)
+  # Replace with your own TURN server for production
+  - url: turn:openrelay.metered.ca:443
+    username: openrelayproject
+    password: openrelayproject
+
+  # Alternative: Twilio TURN (requires account)
+  # - url: turn:global.turn.twilio.com:443?transport=tcp
+  #   username: YOUR_TWILIO_USERNAME
+  #   password: YOUR_TWILIO_PASSWORD
+
+# TCP ICE candidates (more reliable on Colab)
+webrtcICETCPMuxAddress: :8189
+
+# Disable UDP mux (UDP often blocked on Colab)
+webrtcICEUDPMuxAddress:
+
+###############################################
+# SRT Server (disabled)
+###############################################
+srt: no
+
+###############################################
+# Path Configuration
+###############################################
+# Default settings for all streams
+pathDefaults:
+  # Source settings
+  source: publisher
+  sourceOnDemand: no
+
+  # Recording (disabled)
+  record: no
+
+# Path definitions
+paths:
+  # Allow any path name
+  all_others:
+
+###############################################
+# Alternative TURN Server Configurations
+###############################################
+#
+# Metered.ca (50GB free/month):
+# - url: turn:a.relay.metered.ca:443
+#   username: YOUR_USERNAME
+#   password: YOUR_PASSWORD
+#
+# Twilio (100 free hours/month):
+# - url: turn:global.turn.twilio.com:3478
+#   username: YOUR_API_KEY_SID
+#   password: YOUR_API_KEY_SECRET
+#
+# Self-hosted coturn:
+# - url: turn:your-server.com:3478
+#   username: your_username
+#   password: your_password
+###############################################
