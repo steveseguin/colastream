@@ -60,18 +60,20 @@ class SignalingBridge {
 
         // Track peers
         this.sdk.on('peerConnected', (event) => {
-            const uuid = event.detail?.UUID || event.UUID;
+            const detail = event.detail || event;
+            const uuid = detail.UUID;
             if (uuid) {
                 this.connectedPeers.add(uuid);
-                console.log(`[+] Client connected: ${uuid.substring(0, 8)}...`);
+                console.log('[+] Client connected: ' + uuid.substring(0, 8) + '...');
             }
         });
 
         this.sdk.on('peerDisconnected', (event) => {
-            const uuid = event.detail?.UUID || event.UUID;
+            const detail = event.detail || event;
+            const uuid = detail.UUID;
             if (uuid) {
                 this.connectedPeers.delete(uuid);
-                console.log(`[-] Client disconnected: ${uuid.substring(0, 8)}...`);
+                console.log('[-] Client disconnected: ' + uuid.substring(0, 8) + '...');
             }
         });
 
