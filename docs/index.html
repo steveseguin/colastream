@@ -81,6 +81,14 @@
             color: #fff;
         }
         .btn-secondary:hover { background: rgba(255,255,255,0.15); }
+        .btn-colab {
+            background: linear-gradient(135deg, #f9ab00, #f57c00);
+            color: #000;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .btn-colab:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(249,171,0,0.3); }
 
         .arch-diagram {
             background: rgba(0,0,0,0.3);
@@ -147,6 +155,13 @@
                 <h3>Process with AI</h3>
                 <p>MediaMTX receives the stream. Colab processes frames with Python/AI.</p>
             </div>
+        </div>
+
+        <div class="btn-row">
+            <a href="https://colab.research.google.com/github/steveseguin/colastream/blob/main/notebooks/mediamtx_sfu.ipynb" class="btn btn-colab" target="_blank">
+                <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab" style="height: 28px; vertical-align: middle;">
+                Start Colab Notebook
+            </a>
         </div>
 
         <div class="btn-row">
