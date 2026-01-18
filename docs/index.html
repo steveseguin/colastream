@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ColaStream - WebRTC to Google Colab</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+            min-height: 100vh;
+            color: #eee;
+        }
+        .container { max-width: 900px; margin: 0 auto; padding: 40px 20px; }
+        header { text-align: center; padding: 40px 0; }
+        .logo {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #00d4ff, #00ff88);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .tagline { color: #888; font-size: 1.2rem; margin-top: 12px; }
+
+        .hero-box {
+            background: rgba(0,212,255,0.1);
+            border: 1px solid rgba(0,212,255,0.3);
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+            margin: 30px 0;
+        }
+        .hero-box h2 { color: #00d4ff; margin-bottom: 12px; }
+        .hero-box p { color: #aaa; line-height: 1.6; }
+
+        .steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 40px 0;
+        }
+        .step {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+        }
+        .step-num {
+            width: 48px; height: 48px;
+            background: linear-gradient(135deg, #00d4ff, #00ff88);
+            color: #000;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.2rem;
+            margin: 0 auto 16px;
+        }
+        .step h3 { margin-bottom: 8px; }
+        .step p { color: #888; font-size: 14px; }
+
+        .btn-row { display: flex; gap: 16px; justify-content: center; margin: 30px 0; flex-wrap: wrap; }
+        .btn {
+            padding: 16px 32px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #00d4ff, #00a8cc);
+            color: #000;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,212,255,0.3); }
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+        }
+        .btn-secondary:hover { background: rgba(255,255,255,0.15); }
+
+        .arch-diagram {
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            padding: 24px;
+            font-family: monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin: 30px 0;
+        }
+        .arch-diagram pre { color: #00d4ff; }
+
+        footer { text-align: center; padding: 40px; color: #444; font-size: 13px; }
+        footer a { color: #00d4ff; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">ColaStream</div>
+            <p class="tagline">Stream webcam to Google Colab for AI processing</p>
+        </header>
+
+        <div class="hero-box">
+            <h2>No Tunnels Required!</h2>
+            <p>
+                Uses VDO.Ninja's signaling infrastructure to connect browsers directly to
+                MediaMTX running on Colab. VDO.Ninja handles NAT traversal, MediaMTX does the SFU work.
+            </p>
+        </div>
+
+        <div class="arch-diagram">
+<pre>
+┌─────────────┐      VDO.Ninja       ┌─────────────────────────┐
+│   Browser   │◄────signaling────────►│     Google Colab        │
+│  (publish)  │                       │                         │
+└──────┬──────┘                       │  ┌─────────────────┐    │
+       │                              │  │ Signaling Bridge│    │
+       │     WebRTC media             │  │  (Node.js SDK)  │    │
+       └──────────────────────────────┼──►       │         │    │
+                                      │  │       ▼         │    │
+┌─────────────┐                       │  │  ┌─────────┐   │    │
+│   Browser   │◄──────────────────────┼──┼──│MediaMTX │   │    │
+│   (view)    │     WebRTC media      │  │  │  (SFU)  │───┼────┼──► AI Processing
+└─────────────┘                       │  │  └─────────┘   │    │    (OpenCV, YOLO)
+                                      │  └─────────────────┘    │
+                                      └─────────────────────────┘
+</pre>
+        </div>
+
+        <div class="steps">
+            <div class="step">
+                <div class="step-num">1</div>
+                <h3>Run Colab Notebook</h3>
+                <p>Start MediaMTX and the signaling bridge. Copy the Room ID.</p>
+            </div>
+            <div class="step">
+                <div class="step-num">2</div>
+                <h3>Publish from Browser</h3>
+                <p>Open the publish page, enter Room ID, select camera, start streaming.</p>
+            </div>
+            <div class="step">
+                <div class="step-num">3</div>
+                <h3>Process with AI</h3>
+                <p>MediaMTX receives the stream. Colab processes frames with Python/AI.</p>
+            </div>
+        </div>
+
+        <div class="btn-row">
+            <a href="publish.html" class="btn btn-primary">Publish Stream</a>
+            <a href="view.html" class="btn btn-secondary">View Stream</a>
+        </div>
+
+        <footer>
+            <p>
+                Powered by <a href="https://vdo.ninja" target="_blank">VDO.Ninja SDK</a> &
+                <a href="https://github.com/bluenviron/mediamtx" target="_blank">MediaMTX</a>
+            </p>
+            <p style="margin-top: 10px;">
+                <a href="https://github.com/steveseguin/colastream" target="_blank">View on GitHub</a>
+            </p>
+        </footer>
+    </div>
+</body>
+</html>

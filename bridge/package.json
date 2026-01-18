@@ -1,0 +1,19 @@
+{
+  "name": "colastream-bridge",
+  "version": "1.0.0",
+  "description": "VDO.Ninja to MediaMTX signaling bridge",
+  "main": "signaling-bridge.js",
+  "scripts": {
+    "start": "node signaling-bridge.js"
+  },
+  "dependencies": {
+    "node-fetch": "^2.7.0",
+    "ws": "^8.19.0"
+  },
+  "optionalDependencies": {
+    "@roamhq/wrtc": "^0.8.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

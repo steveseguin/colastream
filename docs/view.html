@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ColaStream - View</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #000;
+            min-height: 100vh;
+            color: #eee;
+        }
+
+        .video-wrapper {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        video {
+            max-width: 100%;
+            max-height: 100%;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.95);
+        }
+
+        .overlay.hidden { opacity: 0; pointer-events: none; }
+
+        .logo {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #00d4ff, #00ff88);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 30px;
+        }
+
+        .connect-form {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 24px;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        .form-group { margin-bottom: 16px; }
+        label { display: block; font-size: 13px; color: #888; margin-bottom: 6px; }
+
+        input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            background: rgba(0,0,0,0.5);
+            color: #fff;
+            font-size: 14px;
+        }
+
+        input:focus { outline: none; border-color: #00d4ff; }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            background: linear-gradient(135deg, #00d4ff, #00a8cc);
+            color: #000;
+        }
+
+        button:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,212,255,0.3); }
+
+        .status { text-align: center; margin-top: 16px; font-size: 14px; color: #888; }
+        .status.error { color: #ff4757; }
+
+        .controls {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            padding: 20px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .video-wrapper:hover .controls { opacity: 1; }
+
+        .control-btn {
+            width: 44px; height: 44px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+
+        .control-btn:hover { background: rgba(255,255,255,0.2); }
+        .control-btn svg { width: 20px; height: 20px; }
+
+        .spacer { flex: 1; }
+
+        .live-badge {
+            background: #ff4757;
+            color: #fff;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            display: none;
+        }
+
+        .stream-id { color: #888; font-size: 13px; }
+
+        .spinner {
+            width: 40px; height: 40px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .loading { display: none; flex-direction: column; align-items: center; }
+    </style>
+</head>
+<body>
+    <div class="video-wrapper">
+        <video id="player" playsinline autoplay></video>
+
+        <div class="overlay" id="overlay">
+            <div class="logo">ColaStream</div>
+
+            <div class="connect-form" id="connectForm">
+                <div class="form-group">
+                    <label for="roomId">Room ID</label>
+                    <input type="text" id="roomId" placeholder="From Colab notebook">
+                </div>
+                <div class="form-group">
+                    <label for="streamPath">Stream Path</label>
+                    <input type="text" id="streamPath" value="live" placeholder="live">
+                </div>
+                <button onclick="connect()">Watch Stream</button>
+                <div class="status" id="status"></div>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <div>Connecting...</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="control-btn" onclick="toggleMute()">
+                <svg id="volumeIcon" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+                </svg>
+            </button>
+            <div class="spacer"></div>
+            <span class="live-badge" id="liveBadge">LIVE</span>
+            <span class="stream-id" id="streamLabel"></span>
+            <button class="control-btn" onclick="toggleFullscreen()">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+                </svg>
+            </button>
+            <button class="control-btn" onclick="disconnect()">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <script src="https://vdo.ninja/sdk/vdoninja-sdk.js"></script>
+
+    <script>
+        let signalingSDK = null;
+        let mediaPeerConnection = null;
+        let isConnected = false;
+        let iceServers = [{ urls: 'stun:stun.l.google.com:19302' }];
+        let requestId = 0;
+        let pendingRequests = new Map();
+
+        const player = document.getElementById('player');
+        const overlay = document.getElementById('overlay');
+        const connectForm = document.getElementById('connectForm');
+        const loading = document.getElementById('loading');
+        const roomIdInput = document.getElementById('roomId');
+        const streamPathInput = document.getElementById('streamPath');
+        const statusEl = document.getElementById('status');
+        const liveBadge = document.getElementById('liveBadge');
+        const streamLabel = document.getElementById('streamLabel');
+
+        // Parse URL params
+        const params = new URLSearchParams(window.location.search);
+        if (params.has('room')) roomIdInput.value = params.get('room');
+        if (params.has('stream')) streamPathInput.value = params.get('stream');
+
+        // Auto-connect if params provided
+        if (params.has('room')) {
+            setTimeout(connect, 500);
+        }
+
+        async function connect() {
+            const roomId = roomIdInput.value.trim();
+            const streamPath = streamPathInput.value.trim() || 'live';
+
+            if (!roomId) {
+                showStatus('Enter Room ID', 'error');
+                return;
+            }
+
+            connectForm.style.display = 'none';
+            loading.style.display = 'flex';
+
+            try {
+                // Connect to VDO.Ninja for signaling
+                signalingSDK = new VDONinjaSDK({
+                    room: roomId,
+                    streamID: 'viewer-' + Math.random().toString(36).substring(2, 8),
+                    debug: false
+                });
+
+                signalingSDK.addEventListener('dataReceived', (event) => {
+                    handleSignalingResponse(event.detail.data);
+                });
+
+                await signalingSDK.connect();
+                await signalingSDK.quickView({
+                    streamID: 'colastream-server',
+                    video: false,
+                    audio: false
+                });
+
+                // Create media peer connection
+                mediaPeerConnection = new RTCPeerConnection({ iceServers });
+
+                mediaPeerConnection.ontrack = (event) => {
+                    player.srcObject = event.streams[0];
+                    player.play().catch(() => {});
+                };
+
+                mediaPeerConnection.onconnectionstatechange = () => {
+                    if (mediaPeerConnection.connectionState === 'connected') {
+                        overlay.classList.add('hidden');
+                        liveBadge.style.display = 'inline-block';
+                        streamLabel.textContent = `/${streamPath}`;
+                        isConnected = true;
+                    } else if (mediaPeerConnection.connectionState === 'failed') {
+                        showStatus('Connection failed', 'error');
+                        disconnect();
+                    }
+                };
+
+                // Add transceivers for receiving
+                mediaPeerConnection.addTransceiver('video', { direction: 'recvonly' });
+                mediaPeerConnection.addTransceiver('audio', { direction: 'recvonly' });
+
+                // Create offer
+                const offer = await mediaPeerConnection.createOffer();
+                await mediaPeerConnection.setLocalDescription(offer);
+
+                // Wait for ICE gathering
+                await new Promise(r => setTimeout(r, 1000));
+
+                // Send WHEP request
+                const reqId = ++requestId;
+                signalingSDK.sendData(JSON.stringify({
+                    type: 'whep',
+                    requestId: reqId,
+                    streamPath: streamPath,
+                    sdp: mediaPeerConnection.localDescription.sdp
+                }));
+
+                // Wait for answer
+                const answer = await waitForResponse(reqId, 10000);
+
+                if (answer.error) throw new Error(answer.error);
+
+                await mediaPeerConnection.setRemoteDescription({
+                    type: 'answer',
+                    sdp: answer.sdp
+                });
+
+                if (answer.iceServers) iceServers = answer.iceServers;
+
+            } catch (e) {
+                console.error('Connection error:', e);
+                showStatus(e.message, 'error');
+                connectForm.style.display = 'block';
+                loading.style.display = 'none';
+            }
+        }
+
+        function disconnect() {
+            if (mediaPeerConnection) { mediaPeerConnection.close(); mediaPeerConnection = null; }
+            if (signalingSDK) { signalingSDK.disconnect(); signalingSDK = null; }
+            player.srcObject = null;
+            overlay.classList.remove('hidden');
+            connectForm.style.display = 'block';
+            loading.style.display = 'none';
+            liveBadge.style.display = 'none';
+            isConnected = false;
+        }
+
+        function handleSignalingResponse(data) {
+            try {
+                const msg = typeof data === 'string' ? JSON.parse(data) : data;
+                if (msg.requestId && pendingRequests.has(msg.requestId)) {
+                    pendingRequests.get(msg.requestId).resolve(msg);
+                    pendingRequests.delete(msg.requestId);
+                }
+                if (msg.iceServers) iceServers = msg.iceServers;
+            } catch (e) {}
+        }
+
+        function waitForResponse(reqId, timeout = 10000) {
+            return new Promise((resolve, reject) => {
+                const timer = setTimeout(() => {
+                    pendingRequests.delete(reqId);
+                    reject(new Error('Timeout'));
+                }, timeout);
+                pendingRequests.set(reqId, {
+                    resolve: (data) => { clearTimeout(timer); resolve(data); }
+                });
+            });
+        }
+
+        function showStatus(msg, type = '') {
+            statusEl.textContent = msg;
+            statusEl.className = 'status' + (type ? ' ' + type : '');
+        }
+
+        function toggleMute() { player.muted = !player.muted; }
+        function toggleFullscreen() {
+            if (document.fullscreenElement) document.exitFullscreen();
+            else document.querySelector('.video-wrapper').requestFullscreen();
+        }
+    </script>
+</body>
+</html>

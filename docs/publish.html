@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ColaStream - Publish</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+            min-height: 100vh;
+            color: #eee;
+        }
+
+        .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+
+        header { text-align: center; padding: 30px 0; }
+
+        .logo {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #00d4ff, #00ff88);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .tagline { color: #666; margin-top: 8px; }
+
+        .card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            font-size: 1rem;
+            color: #00d4ff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 16px;
+        }
+
+        .form-group { margin-bottom: 16px; }
+        label { display: block; font-size: 13px; color: #888; margin-bottom: 6px; }
+
+        input, select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            font-size: 14px;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        @media (max-width: 600px) { .row { grid-template-columns: 1fr; } }
+
+        .video-container {
+            position: relative;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            aspect-ratio: 16/9;
+        }
+
+        video { width: 100%; height: 100%; object-fit: contain; }
+
+        .video-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.7);
+            color: #666;
+        }
+
+        .video-overlay.hidden { display: none; }
+
+        .btn-row { display: flex; gap: 12px; margin-top: 20px; }
+
+        button {
+            flex: 1;
+            padding: 14px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00d4ff, #00a8cc);
+            color: #000;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,212,255,0.3);
+        }
+
+        .btn-secondary { background: rgba(255,255,255,0.1); color: #fff; }
+        .btn-danger { background: #ff4757; color: #fff; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            margin-top: 16px;
+        }
+
+        .status-dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            background: #666;
+        }
+
+        .status-dot.live {
+            background: #00ff88;
+            box-shadow: 0 0 12px #00ff88;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connecting { background: #ffaa00; animation: pulse 0.5s infinite; }
+        .status-dot.error { background: #ff4757; }
+
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        .share-box {
+            background: rgba(0,255,136,0.1);
+            border: 1px solid rgba(0,255,136,0.3);
+            border-radius: 10px;
+            padding: 16px;
+            margin-top: 16px;
+            display: none;
+        }
+
+        .share-box.visible { display: block; }
+        .share-box h3 { color: #00ff88; font-size: 14px; margin-bottom: 10px; }
+
+        .copy-row { display: flex; gap: 8px; }
+        .copy-row input { flex: 1; font-family: monospace; }
+        .copy-row button { flex: none; padding: 12px 16px; }
+
+        .info-box {
+            background: rgba(0,212,255,0.1);
+            border: 1px solid rgba(0,212,255,0.3);
+            border-radius: 10px;
+            padding: 16px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .info-box strong { color: #00d4ff; }
+
+        footer { text-align: center; padding: 30px; color: #444; font-size: 13px; }
+        footer a { color: #00d4ff; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">ColaStream</div>
+            <p class="tagline">Publish to Colab via VDO.Ninja signaling</p>
+        </header>
+
+        <div class="card">
+            <div class="info-box">
+                <strong>How it works:</strong> This page connects to your Colab notebook via VDO.Ninja's
+                signaling infrastructure. No HTTP tunnels needed - VDO.Ninja handles NAT traversal,
+                and MediaMTX on Colab does the SFU heavy lifting.
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Colab Connection</h2>
+            <div class="row">
+                <div class="form-group">
+                    <label for="roomId">Room ID (from Colab)</label>
+                    <input type="text" id="roomId" placeholder="e.g., colastream-abc123">
+                </div>
+                <div class="form-group">
+                    <label for="streamPath">Stream Path</label>
+                    <input type="text" id="streamPath" value="live" placeholder="live">
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Camera & Microphone</h2>
+            <div class="row">
+                <div class="form-group">
+                    <label for="videoSource">Camera</label>
+                    <select id="videoSource"></select>
+                </div>
+                <div class="form-group">
+                    <label for="audioSource">Microphone</label>
+                    <select id="audioSource"></select>
+                </div>
+            </div>
+            <div class="row">
+                <div class="form-group">
+                    <label for="resolution">Resolution</label>
+                    <select id="resolution">
+                        <option value="1280x720">720p</option>
+                        <option value="1920x1080">1080p</option>
+                        <option value="640x480">480p</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="frameRate">Frame Rate</label>
+                    <select id="frameRate">
+                        <option value="30">30 fps</option>
+                        <option value="24">24 fps</option>
+                        <option value="15">15 fps</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Preview & Broadcast</h2>
+            <div class="video-container">
+                <video id="preview" autoplay muted playsinline></video>
+                <div class="video-overlay" id="videoOverlay">Click "Preview" to start camera</div>
+            </div>
+
+            <div class="btn-row">
+                <button class="btn-secondary" id="previewBtn" onclick="togglePreview()">Preview</button>
+                <button class="btn-primary" id="publishBtn" onclick="togglePublish()" disabled>Start Broadcasting</button>
+            </div>
+
+            <div class="status-bar">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="statusText">Ready</span>
+            </div>
+
+            <div class="share-box" id="shareBox">
+                <h3>Share View Link</h3>
+                <div class="copy-row">
+                    <input type="text" id="shareUrl" readonly>
+                    <button class="btn-primary" onclick="copyShareLink()">Copy</button>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            Powered by <a href="https://vdo.ninja" target="_blank">VDO.Ninja</a> &
+            <a href="https://github.com/bluenviron/mediamtx" target="_blank">MediaMTX</a>
+        </footer>
+    </div>
+
+    <!-- VDO.Ninja SDK -->
+    <script src="https://vdo.ninja/sdk/vdoninja-sdk.js"></script>
+
+    <script>
+        let localStream = null;
+        let signalingSDK = null;
+        let mediaPeerConnection = null;
+        let isPublishing = false;
+        let isPreviewing = false;
+        let iceServers = [{ urls: 'stun:stun.l.google.com:19302' }];
+        let requestId = 0;
+        let pendingRequests = new Map();
+
+        const roomIdInput = document.getElementById('roomId');
+        const streamPathInput = document.getElementById('streamPath');
+        const videoSourceSelect = document.getElementById('videoSource');
+        const audioSourceSelect = document.getElementById('audioSource');
+        const resolutionSelect = document.getElementById('resolution');
+        const frameRateSelect = document.getElementById('frameRate');
+        const previewVideo = document.getElementById('preview');
+        const videoOverlay = document.getElementById('videoOverlay');
+        const previewBtn = document.getElementById('previewBtn');
+        const publishBtn = document.getElementById('publishBtn');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const shareBox = document.getElementById('shareBox');
+
+        // Parse URL params
+        const params = new URLSearchParams(window.location.search);
+        if (params.has('room')) roomIdInput.value = params.get('room');
+        if (params.has('stream')) streamPathInput.value = params.get('stream');
+
+        // Load devices
+        async function loadDevices() {
+            try {
+                await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+                    .then(s => s.getTracks().forEach(t => t.stop()));
+
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                videoSourceSelect.innerHTML = devices.filter(d => d.kind === 'videoinput')
+                    .map((d, i) => `<option value="${d.deviceId}">${d.label || `Camera ${i+1}`}</option>`).join('');
+                audioSourceSelect.innerHTML = devices.filter(d => d.kind === 'audioinput')
+                    .map((d, i) => `<option value="${d.deviceId}">${d.label || `Mic ${i+1}`}</option>`).join('');
+            } catch (e) {
+                setStatus('error', 'Camera access denied');
+            }
+        }
+
+        function getConstraints() {
+            const [w, h] = resolutionSelect.value.split('x').map(Number);
+            return {
+                video: {
+                    deviceId: videoSourceSelect.value ? { exact: videoSourceSelect.value } : undefined,
+                    width: { ideal: w }, height: { ideal: h },
+                    frameRate: { ideal: parseInt(frameRateSelect.value) }
+                },
+                audio: { deviceId: audioSourceSelect.value ? { exact: audioSourceSelect.value } : undefined }
+            };
+        }
+
+        async function togglePreview() {
+            if (isPreviewing) {
+                if (localStream) localStream.getTracks().forEach(t => t.stop());
+                localStream = null;
+                previewVideo.srcObject = null;
+                videoOverlay.classList.remove('hidden');
+                previewBtn.textContent = 'Preview';
+                publishBtn.disabled = true;
+                isPreviewing = false;
+                if (isPublishing) stopPublish();
+            } else {
+                try {
+                    localStream = await navigator.mediaDevices.getUserMedia(getConstraints());
+                    previewVideo.srcObject = localStream;
+                    videoOverlay.classList.add('hidden');
+                    previewBtn.textContent = 'Stop Preview';
+                    publishBtn.disabled = false;
+                    isPreviewing = true;
+                } catch (e) {
+                    setStatus('error', e.message);
+                }
+            }
+        }
+
+        async function togglePublish() {
+            if (isPublishing) {
+                stopPublish();
+            } else {
+                await startPublish();
+            }
+        }
+
+        async function startPublish() {
+            const roomId = roomIdInput.value.trim();
+            const streamPath = streamPathInput.value.trim() || 'live';
+
+            if (!roomId) {
+                setStatus('error', 'Enter Room ID from Colab');
+                return;
+            }
+
+            if (!localStream) {
+                setStatus('error', 'Start preview first');
+                return;
+            }
+
+            try {
+                setStatus('connecting', 'Connecting to signaling...');
+
+                // Connect to VDO.Ninja for signaling
+                signalingSDK = new VDONinjaSDK({
+                    room: roomId,
+                    streamID: 'publisher-' + Math.random().toString(36).substring(2, 8),
+                    debug: false
+                });
+
+                // Handle signaling responses
+                signalingSDK.addEventListener('dataReceived', (event) => {
+                    handleSignalingResponse(event.detail.data);
+                });
+
+                signalingSDK.addEventListener('peerConnected', () => {
+                    console.log('Connected to Colab bridge');
+                });
+
+                await signalingSDK.connect();
+                await signalingSDK.quickView({
+                    streamID: 'colastream-server',
+                    video: false,
+                    audio: false
+                });
+
+                setStatus('connecting', 'Sending WHIP offer...');
+
+                // Create media peer connection for actual streaming
+                mediaPeerConnection = new RTCPeerConnection({ iceServers });
+
+                // Add local tracks
+                localStream.getTracks().forEach(track => {
+                    mediaPeerConnection.addTrack(track, localStream);
+                });
+
+                // Handle ICE candidates
+                mediaPeerConnection.onicecandidate = (e) => {
+                    if (e.candidate) {
+                        console.log('ICE candidate:', e.candidate.candidate);
+                    }
+                };
+
+                mediaPeerConnection.onconnectionstatechange = () => {
+                    console.log('Media connection:', mediaPeerConnection.connectionState);
+                    if (mediaPeerConnection.connectionState === 'connected') {
+                        setStatus('live', `Broadcasting to /${streamPath}`);
+                        showShareLink(roomId, streamPath);
+                    } else if (mediaPeerConnection.connectionState === 'failed') {
+                        setStatus('error', 'Media connection failed');
+                    }
+                };
+
+                // Create and send offer via signaling
+                const offer = await mediaPeerConnection.createOffer();
+                await mediaPeerConnection.setLocalDescription(offer);
+
+                // Wait for ICE gathering
+                await waitForIceGathering(mediaPeerConnection);
+
+                // Send WHIP request via data channel
+                const reqId = ++requestId;
+                sendSignalingRequest({
+                    type: 'whip',
+                    requestId: reqId,
+                    streamPath: streamPath,
+                    sdp: mediaPeerConnection.localDescription.sdp
+                });
+
+                // Wait for answer
+                const answer = await waitForResponse(reqId, 10000);
+
+                if (answer.error) {
+                    throw new Error(answer.error);
+                }
+
+                // Apply answer
+                await mediaPeerConnection.setRemoteDescription({
+                    type: 'answer',
+                    sdp: answer.sdp
+                });
+
+                // Update ICE servers if provided
+                if (answer.iceServers) {
+                    iceServers = answer.iceServers;
+                }
+
+                isPublishing = true;
+                publishBtn.textContent = 'Stop Broadcasting';
+                publishBtn.classList.remove('btn-primary');
+                publishBtn.classList.add('btn-danger');
+                previewBtn.disabled = true;
+
+            } catch (e) {
+                console.error('Publish error:', e);
+                setStatus('error', e.message);
+                stopPublish();
+            }
+        }
+
+        function stopPublish() {
+            if (mediaPeerConnection) {
+                mediaPeerConnection.close();
+                mediaPeerConnection = null;
+            }
+            if (signalingSDK) {
+                signalingSDK.disconnect();
+                signalingSDK = null;
+            }
+
+            isPublishing = false;
+            publishBtn.textContent = 'Start Broadcasting';
+            publishBtn.classList.remove('btn-danger');
+            publishBtn.classList.add('btn-primary');
+            previewBtn.disabled = false;
+            shareBox.classList.remove('visible');
+            setStatus('', 'Ready');
+        }
+
+        function sendSignalingRequest(message) {
+            if (signalingSDK) {
+                signalingSDK.sendData(JSON.stringify(message));
+            }
+        }
+
+        function handleSignalingResponse(data) {
+            try {
+                const message = typeof data === 'string' ? JSON.parse(data) : data;
+
+                if (message.requestId && pendingRequests.has(message.requestId)) {
+                    pendingRequests.get(message.requestId).resolve(message);
+                    pendingRequests.delete(message.requestId);
+                }
+
+                // Update ICE servers if provided
+                if (message.iceServers) {
+                    iceServers = message.iceServers;
+                }
+            } catch (e) {
+                console.error('Error parsing response:', e);
+            }
+        }
+
+        function waitForResponse(reqId, timeout = 10000) {
+            return new Promise((resolve, reject) => {
+                const timer = setTimeout(() => {
+                    pendingRequests.delete(reqId);
+                    reject(new Error('Signaling timeout'));
+                }, timeout);
+
+                pendingRequests.set(reqId, {
+                    resolve: (data) => {
+                        clearTimeout(timer);
+                        resolve(data);
+                    }
+                });
+            });
+        }
+
+        function waitForIceGathering(pc) {
+            return new Promise((resolve) => {
+                if (pc.iceGatheringState === 'complete') {
+                    resolve();
+                } else {
+                    const check = () => {
+                        if (pc.iceGatheringState === 'complete') {
+                            pc.removeEventListener('icegatheringstatechange', check);
+                            resolve();
+                        }
+                    };
+                    pc.addEventListener('icegatheringstatechange', check);
+                    // Timeout fallback
+                    setTimeout(resolve, 2000);
+                }
+            });
+        }
+
+        function setStatus(state, text) {
+            statusDot.className = 'status-dot' + (state ? ' ' + state : '');
+            statusText.textContent = text;
+        }
+
+        function showShareLink(roomId, streamPath) {
+            const url = `${location.origin}${location.pathname.replace('publish.html', 'view.html')}?room=${encodeURIComponent(roomId)}&stream=${encodeURIComponent(streamPath)}`;
+            document.getElementById('shareUrl').value = url;
+            shareBox.classList.add('visible');
+        }
+
+        function copyShareLink() {
+            document.getElementById('shareUrl').select();
+            document.execCommand('copy');
+            event.target.textContent = 'Copied!';
+            setTimeout(() => event.target.textContent = 'Copy', 2000);
+        }
+
+        loadDevices();
+        navigator.mediaDevices.addEventListener('devicechange', loadDevices);
+    </script>
+</body>
+</html>
