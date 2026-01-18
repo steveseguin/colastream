@@ -10,18 +10,27 @@ Stream your webcam to Google Colab for AI processing - **no tunnels required!**
 │  (publish)  │                       │                         │
 └──────┬──────┘                       │  ┌─────────────────┐    │
        │                              │  │ Signaling Bridge│    │
-       │     WebRTC media             │  │  (VDO.Ninja SDK)│    │
-       └──────────────────────────────┼──►       │         │    │
-                                      │  │       ▼         │    │
+       │     WebRTC media             │  │  (Node.js)      │    │
+       └─────────(via TURN)───────────┼──►       │         │    │
+                                      │  │       ▼ WHIP    │    │
 ┌─────────────┐                       │  │  ┌─────────┐   │    │
-│   Browser   │◄──────────────────────┼──┼──│MediaMTX │   │    │
+│   Browser   │◄────(via TURN)────────┼──┼──│MediaMTX │   │    │
 │   (view)    │     WebRTC media      │  │  │  (SFU)  │───┼────┼──► AI Processing
-└─────────────┘                       │  │  └─────────┘   │    │
+└─────────────┘                       │  │  └─────────┘   │    │    (RTSP/OpenCV)
                                       │  └─────────────────┘    │
                                       └─────────────────────────┘
 ```
 
-**Key insight**: VDO.Ninja SDK handles signaling and provides TURN servers for NAT traversal. MediaMTX runs locally on Colab as the SFU. No ngrok/cloudflared tunnels needed!
+### Why This Architecture?
+
+| Challenge | Solution |
+|-----------|----------|
+| Colab has no public IP | VDO.Ninja SDK for signaling (WebSocket) |
+| NAT/firewall blocks UDP | VDO.Ninja TURN servers relay media |
+| Need scalable streaming | MediaMTX SFU (1 publisher → many viewers) |
+| Want RTSP for AI pipelines | MediaMTX provides local RTSP endpoint |
+
+**Key insight**: VDO.Ninja SDK handles **signaling only** (SDP exchange via data channels). VDO.Ninja's TURN servers handle NAT traversal for the actual WebRTC media. MediaMTX runs locally on Colab as the SFU. **No ngrok/cloudflared HTTP tunnels needed!**
 
 ## Quick Start
 
@@ -30,9 +39,10 @@ Stream your webcam to Google Colab for AI processing - **no tunnels required!**
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/steveseguin/colastream/blob/main/notebooks/mediamtx_sfu.ipynb)
 
 Run the cells to:
-- Install MediaMTX and Node.js
-- Start the signaling bridge
-- Get your **Room ID**
+1. Install MediaMTX (SFU server)
+2. Configure with VDO.Ninja TURN servers
+3. Run the signaling bridge
+4. Get your **Room ID**
 
 ### 2. Publish from Browser
 
@@ -41,6 +51,8 @@ Open: **https://steveseguin.github.io/colastream/publish.html**
 1. Enter the Room ID from Colab
 2. Select your camera
 3. Click "Start Broadcasting"
+
+Your webcam stream flows: Browser → VDO.Ninja TURN → MediaMTX on Colab
 
 ### 3. Process with AI
 
@@ -58,15 +70,6 @@ while True:
     # Your AI processing here
     # e.g., YOLO, pose detection, etc.
 ```
-
-## Why This Architecture?
-
-| Challenge | Solution |
-|-----------|----------|
-| Colab has no public IP | VDO.Ninja SDK for signaling |
-| NAT/firewall blocks connections | VDO.Ninja TURN servers |
-| Need scalable streaming | MediaMTX SFU (1 publisher → many viewers) |
-| Want RTSP for AI pipelines | MediaMTX provides local RTSP |
 
 ## Files
 

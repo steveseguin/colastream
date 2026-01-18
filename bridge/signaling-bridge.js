@@ -1,94 +1,152 @@
+#!/usr/bin/env node
 /**
- * VDO.Ninja to MediaMTX Signaling Bridge
+ * ColaStream Signaling Bridge
  *
- * Runs on Google Colab to bridge VDO.Ninja signaling to local MediaMTX.
- * Browsers connect via VDO.Ninja SDK, send WHIP/WHEP requests over data channel,
- * and this bridge proxies them to MediaMTX.
- *
- * No HTTP tunnel required!
+ * Bridges VDO.Ninja signaling to local MediaMTX.
+ * Browsers connect via VDO.Ninja SDK, this bridge proxies WHIP/WHEP to MediaMTX.
  */
 
-const { VDONinjaSDK } = require('./vdoninja-sdk-node.js');
+// Polyfill WebSocket for Node.js with proper headers
+if (typeof WebSocket === 'undefined') {
+    const OriginalWebSocket = require('ws');
+
+    // Wrapper that adds headers VDO.Ninja expects
+    global.WebSocket = class WebSocketWrapper extends OriginalWebSocket {
+        constructor(url, protocols) {
+            super(url, protocols, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    'Origin': 'https://vdo.ninja'
+                }
+            });
+        }
+    };
+}
+
+const VDONinjaSDK = require('./vdoninja-sdk.js');
 
 class SignalingBridge {
     constructor(options = {}) {
         this.roomId = options.room || 'colastream-' + Math.random().toString(36).substring(2, 8);
         this.mediaServerUrl = options.mediaServerUrl || 'http://localhost:8889';
         this.sdk = null;
-        this.clients = new Map(); // Track connected clients
+        this.connectedPeers = new Set();
+        this.iceServers = null;
     }
 
     async start() {
-        console.log('Starting VDO.Ninja Signaling Bridge...');
+        console.log('='.repeat(60));
+        console.log('ColaStream Signaling Bridge');
+        console.log('='.repeat(60));
         console.log(`Room ID: ${this.roomId}`);
-        console.log(`MediaMTX URL: ${this.mediaServerUrl}`);
+        console.log(`MediaMTX: ${this.mediaServerUrl}`);
+        console.log('');
 
+        // Fetch TURN servers
+        await this.fetchTurnServers();
+
+        // Initialize SDK
         this.sdk = new VDONinjaSDK({
             room: this.roomId,
             streamID: 'colastream-server',
             debug: false
         });
 
-        // Handle incoming data channel messages
-        this.sdk.addEventListener('dataReceived', async (event) => {
-            const { data, UUID } = event.detail;
+        // Handle data channel messages
+        this.sdk.on('dataReceived', async (event) => {
+            const { data, UUID } = event.detail || event;
             await this.handleMessage(data, UUID);
         });
 
-        // Track peer connections
-        this.sdk.addEventListener('peerConnected', (event) => {
-            const { UUID } = event.detail;
-            console.log(`Client connected: ${UUID}`);
-            this.clients.set(UUID, { connected: true });
-        });
-
-        this.sdk.addEventListener('peerDisconnected', (event) => {
-            const { UUID } = event.detail;
-            console.log(`Client disconnected: ${UUID}`);
-            this.clients.delete(UUID);
-        });
-
-        // Connect and announce
-        await this.sdk.connect();
-        await this.sdk.announce({ streamID: 'colastream-server' });
-
-        console.log('\n========================================');
-        console.log('BRIDGE READY');
-        console.log('========================================');
-        console.log(`Room ID for clients: ${this.roomId}`);
-        console.log('Waiting for browser connections...');
-        console.log('========================================\n');
-
-        return this.roomId;
-    }
-
-    async handleMessage(data, clientUUID) {
-        try {
-            const message = typeof data === 'string' ? JSON.parse(data) : data;
-
-            if (message.type === 'whip' || message.type === 'whep') {
-                await this.handleSignaling(message, clientUUID);
-            } else if (message.type === 'ping') {
-                this.sdk.sendData(JSON.stringify({ type: 'pong' }), clientUUID);
+        // Track peers
+        this.sdk.on('peerConnected', (event) => {
+            const uuid = event.detail?.UUID || event.UUID;
+            if (uuid) {
+                this.connectedPeers.add(uuid);
+                console.log(`[+] Client connected: ${uuid.substring(0, 8)}...`);
             }
+        });
+
+        this.sdk.on('peerDisconnected', (event) => {
+            const uuid = event.detail?.UUID || event.UUID;
+            if (uuid) {
+                this.connectedPeers.delete(uuid);
+                console.log(`[-] Client disconnected: ${uuid.substring(0, 8)}...`);
+            }
+        });
+
+        // Connect
+        try {
+            await this.sdk.connect();
+            await this.sdk.announce({ streamID: 'colastream-server' });
+
+            console.log('');
+            console.log('='.repeat(60));
+            console.log('BRIDGE READY');
+            console.log('='.repeat(60));
+            console.log('');
+            console.log('Publish URL:');
+            console.log(`  https://steveseguin.github.io/colastream/publish.html?room=${this.roomId}`);
+            console.log('');
+            console.log('View URL:');
+            console.log(`  https://steveseguin.github.io/colastream/view.html?room=${this.roomId}`);
+            console.log('');
+            console.log('Waiting for connections...');
+            console.log('='.repeat(60));
+
+            return this.roomId;
         } catch (e) {
-            console.error('Error handling message:', e);
-            this.sdk.sendData(JSON.stringify({
-                type: 'error',
-                error: e.message
-            }), clientUUID);
+            console.error('Failed to connect:', e.message);
+            throw e;
         }
     }
 
-    async handleSignaling(message, clientUUID) {
+    async fetchTurnServers() {
+        try {
+            const fetch = (await import('node-fetch')).default;
+            const response = await fetch('https://turnservers.vdo.ninja/', { timeout: 5000 });
+            const data = await response.json();
+            this.iceServers = data.servers.map(s => ({
+                urls: s.urls,
+                username: s.username,
+                credential: s.credential
+            }));
+            console.log(`Fetched ${this.iceServers.length} TURN servers`);
+        } catch (e) {
+            console.log('Using default STUN server');
+            this.iceServers = [{ urls: 'stun:stun.l.google.com:19302' }];
+        }
+    }
+
+    async handleMessage(data, clientUUID) {
+        let message;
+        try {
+            message = typeof data === 'string' ? JSON.parse(data) : data;
+        } catch (e) {
+            console.error('Invalid JSON:', e.message);
+            return;
+        }
+
+        const shortUUID = clientUUID ? clientUUID.substring(0, 8) : 'unknown';
+
+        if (message.type === 'whip' || message.type === 'whep') {
+            await this.handleSignaling(message, clientUUID, shortUUID);
+        } else if (message.type === 'ping') {
+            this.sendToClient(clientUUID, { type: 'pong' });
+        } else {
+            console.log(`[${shortUUID}] Unknown message type: ${message.type}`);
+        }
+    }
+
+    async handleSignaling(message, clientUUID, shortUUID) {
         const { type, streamPath, sdp, requestId } = message;
         const endpoint = type === 'whip' ? 'whip' : 'whep';
-        const url = `${this.mediaServerUrl}/${streamPath}/${endpoint}`;
+        const url = `${this.mediaServerUrl}/${streamPath || 'live'}/${endpoint}`;
 
-        console.log(`[${clientUUID.substring(0, 8)}] ${type.toUpperCase()} request for /${streamPath}`);
+        console.log(`[${shortUUID}] ${type.toUpperCase()} /${streamPath || 'live'}`);
 
         try {
-            // Proxy the SDP to MediaMTX
+            const fetch = (await import('node-fetch')).default;
             const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/sdp' },
@@ -96,75 +154,70 @@ class SignalingBridge {
             });
 
             if (!response.ok) {
-                throw new Error(`MediaMTX error: ${response.status}`);
+                const text = await response.text();
+                throw new Error(`MediaMTX ${response.status}: ${text.substring(0, 100)}`);
             }
 
             const answerSdp = await response.text();
 
-            // Send answer back to client
-            this.sdk.sendData(JSON.stringify({
+            this.sendToClient(clientUUID, {
                 type: `${type}-answer`,
                 requestId,
                 sdp: answerSdp,
-                iceServers: await this.getIceServers()
-            }), clientUUID);
+                iceServers: this.iceServers
+            });
 
-            console.log(`[${clientUUID.substring(0, 8)}] ${type.toUpperCase()} answer sent`);
+            console.log(`[${shortUUID}] ${type.toUpperCase()} answer sent`);
 
         } catch (e) {
-            console.error(`[${clientUUID.substring(0, 8)}] Error:`, e.message);
-            this.sdk.sendData(JSON.stringify({
+            console.error(`[${shortUUID}] Error: ${e.message}`);
+            this.sendToClient(clientUUID, {
                 type: 'error',
                 requestId,
                 error: e.message
-            }), clientUUID);
+            });
         }
     }
 
-    async getIceServers() {
-        // Fetch VDO.Ninja TURN servers for clients to use
-        try {
-            const response = await fetch('https://turnservers.vdo.ninja/');
-            const data = await response.json();
-            return data.servers.map(s => ({
-                urls: s.urls,
-                username: s.username,
-                credential: s.credential
-            }));
-        } catch (e) {
-            return [{ urls: 'stun:stun.l.google.com:19302' }];
+    sendToClient(clientUUID, data) {
+        if (this.sdk) {
+            try {
+                this.sdk.sendData(JSON.stringify(data), { target: clientUUID });
+            } catch (e) {
+                console.error('Failed to send:', e.message);
+            }
         }
     }
 
-    getStats() {
-        return {
-            room: this.roomId,
-            connectedClients: this.clients.size,
-            clients: Array.from(this.clients.keys())
-        };
-    }
-
-    async stop() {
+    stop() {
         if (this.sdk) {
             this.sdk.disconnect();
+            this.sdk = null;
         }
+        console.log('Bridge stopped');
     }
 }
 
-module.exports = { SignalingBridge };
+// Main
+async function main() {
+    const roomId = process.argv[2] || undefined;
 
-// Run if executed directly
-if (require.main === module) {
-    const bridge = new SignalingBridge({
-        room: process.argv[2] || undefined
-    });
+    const bridge = new SignalingBridge({ room: roomId });
 
-    bridge.start().catch(console.error);
-
-    // Handle shutdown
     process.on('SIGINT', () => {
-        console.log('\nShutting down bridge...');
+        console.log('\nShutting down...');
         bridge.stop();
         process.exit(0);
     });
+
+    try {
+        await bridge.start();
+    } catch (e) {
+        console.error('Bridge failed to start:', e);
+        process.exit(1);
+    }
 }
+
+main();
+
+module.exports = { SignalingBridge };
