@@ -63,16 +63,19 @@ webrtcICEServers2:
   # STUN for public IP discovery (won't work alone on Colab)
   - url: stun:stun.l.google.com:19302
 
-  # Free TURN server (for testing only - may be unreliable)
-  # Replace with your own TURN server for production
-  - url: turn:openrelay.metered.ca:443
-    username: openrelayproject
-    password: openrelayproject
+  # VDO.Ninja TURN servers (free, reliable)
+  # Fetched from: https://turnservers.vdo.ninja/
+  - url: turn:turn-use1.vdo.ninja:3478
+    username: vdoninja
+    password: EastSideRepresentZ
 
-  # Alternative: Twilio TURN (requires account)
-  # - url: turn:global.turn.twilio.com:443?transport=tcp
-  #   username: YOUR_TWILIO_USERNAME
-  #   password: YOUR_TWILIO_PASSWORD
+  - url: turns:turn-use1.vdo.ninja:3478
+    username: vdoninja
+    password: EastSideRepresentZ
+
+  - url: turn:turn-use2.vdo.ninja:3478
+    username: vdoninja
+    password: pleaseUseYourOwn
 
 # TCP ICE candidates (more reliable on Colab)
 webrtcICETCPMuxAddress: :8189
