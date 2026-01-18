@@ -1,105 +1,111 @@
-# ColaStream - WebRTC SFU on Google Colab
+# ColaStream - WebRTC SFU for Google Colab
 
-Run a WebRTC SFU (Selective Forwarding Unit) server on Google Colab for AI-powered live streaming projects.
+Stream your webcam to Google Colab for AI processing - **no tunnels required!**
 
-## Overview
-
-This project deploys [MediaMTX](https://github.com/bluenviron/mediamtx) as a WebRTC SFU on Google Colab, enabling real-time video streaming for AI processing pipelines.
-
-## Feasibility
-
-### Why This Works
-
-| Challenge | Solution |
-|-----------|----------|
-| Colab has no public IP | ngrok/cloudflared tunnels expose endpoints |
-| UDP ports blocked | TURN servers relay media over TCP |
-| NAT traversal | WHIP/WHEP protocols use HTTP for signaling |
-| Session timeouts | Designed for development/testing cycles |
-
-### Architecture
+## How It Works
 
 ```
-┌─────────────────┐     HTTPS/WSS      ┌──────────────────┐
-│  Browser/OBS    │◄──────────────────►│  ngrok tunnel    │
-│  (WHIP client)  │                    │                  │
-└─────────────────┘                    └────────┬─────────┘
-                                                │
-                                                ▼
-┌─────────────────┐                    ┌──────────────────┐
-│  Browser        │◄──────────────────►│  Google Colab    │
-│  (WHEP viewer)  │     via TURN       │  MediaMTX SFU    │
-└─────────────────┘                    │  + AI Pipeline   │
-                                       └──────────────────┘
+┌─────────────┐      VDO.Ninja       ┌─────────────────────────┐
+│   Browser   │◄────signaling────────►│     Google Colab        │
+│  (publish)  │                       │                         │
+└──────┬──────┘                       │  ┌─────────────────┐    │
+       │                              │  │ Signaling Bridge│    │
+       │     WebRTC media             │  │  (VDO.Ninja SDK)│    │
+       └──────────────────────────────┼──►       │         │    │
+                                      │  │       ▼         │    │
+┌─────────────┐                       │  │  ┌─────────┐   │    │
+│   Browser   │◄──────────────────────┼──┼──│MediaMTX │   │    │
+│   (view)    │     WebRTC media      │  │  │  (SFU)  │───┼────┼──► AI Processing
+└─────────────┘                       │  │  └─────────┘   │    │
+                                      │  └─────────────────┘    │
+                                      └─────────────────────────┘
 ```
+
+**Key insight**: VDO.Ninja SDK handles signaling and provides TURN servers for NAT traversal. MediaMTX runs locally on Colab as the SFU. No ngrok/cloudflared tunnels needed!
 
 ## Quick Start
 
-### Option 1: Open in Colab (Recommended)
+### 1. Open Colab Notebook
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/steveseguin/colastream/blob/main/notebooks/mediamtx_sfu.ipynb)
 
-### Option 2: Local Testing
+Run the cells to:
+- Install MediaMTX and Node.js
+- Start the signaling bridge
+- Get your **Room ID**
 
-```bash
-# Download MediaMTX
-wget https://github.com/bluenviron/mediamtx/releases/download/v1.9.3/mediamtx_v1.9.3_linux_amd64.tar.gz
-tar -xzf mediamtx_v1.9.3_linux_amd64.tar.gz
+### 2. Publish from Browser
 
-# Run with our config
-./mediamtx mediamtx.yml
+Open: **https://steveseguin.github.io/colastream/publish.html**
+
+1. Enter the Room ID from Colab
+2. Select your camera
+3. Click "Start Broadcasting"
+
+### 3. Process with AI
+
+In Colab, the stream is available at `rtsp://localhost:8554/live`:
+
+```python
+import cv2
+
+cap = cv2.VideoCapture("rtsp://localhost:8554/live")
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+
+    # Your AI processing here
+    # e.g., YOLO, pose detection, etc.
 ```
 
-## Features
+## Why This Architecture?
 
-- **WHIP Ingest**: Publish streams via WebRTC (OBS 30+, browser, etc.)
-- **WHEP Playback**: Watch streams with ultra-low latency
-- **SFU Mode**: One publisher, multiple viewers
-- **AI Ready**: Process frames with Python/OpenCV/PyTorch
-- **Free GPU**: Leverage Colab's free GPU tier
-
-## Use Cases
-
-1. **AI Video Processing**: Real-time object detection, pose estimation
-2. **Live Transcription**: Speech-to-text on live streams
-3. **Interactive Demos**: Low-latency AI demos without infrastructure costs
-4. **Prototyping**: Test WebRTC pipelines before production deployment
-
-## Protocols Supported
-
-| Protocol | Port | Use Case |
-|----------|------|----------|
-| WHIP | 8889 | WebRTC publish (ingest) |
-| WHEP | 8889 | WebRTC subscribe (playback) |
-| RTSP | 8554 | Traditional streaming |
-| HLS | 8888 | Fallback playback |
-
-## Limitations
-
-- **Session Duration**: Colab sessions timeout after ~12 hours (or less on free tier)
-- **Latency**: TURN relay adds ~50-200ms vs direct WebRTC
-- **Bandwidth**: Colab network may throttle high bitrate streams
-- **Not for Production**: Use for development and testing only
+| Challenge | Solution |
+|-----------|----------|
+| Colab has no public IP | VDO.Ninja SDK for signaling |
+| NAT/firewall blocks connections | VDO.Ninja TURN servers |
+| Need scalable streaming | MediaMTX SFU (1 publisher → many viewers) |
+| Want RTSP for AI pipelines | MediaMTX provides local RTSP |
 
 ## Files
 
 ```
 colastream/
+├── docs/                    # GitHub Pages
+│   ├── index.html          # Landing page
+│   ├── publish.html        # WebRTC publisher
+│   └── view.html           # WebRTC viewer
+├── bridge/
+│   └── signaling-bridge.js # VDO.Ninja → MediaMTX bridge
 ├── notebooks/
-│   └── mediamtx_sfu.ipynb    # Main Colab notebook
-├── web/
-│   └── client.html           # Test client for WHIP/WHEP
-├── configs/
-│   └── mediamtx.yml          # MediaMTX configuration
-└── README.md
+│   └── mediamtx_sfu.ipynb  # Main Colab notebook
+└── configs/
+    └── mediamtx.yml        # MediaMTX configuration
+```
+
+## Advanced: Local Development
+
+```bash
+# Install MediaMTX
+wget https://github.com/bluenviron/mediamtx/releases/download/v1.9.3/mediamtx_v1.9.3_linux_amd64.tar.gz
+tar -xzf mediamtx_v1.9.3_linux_amd64.tar.gz
+
+# Run MediaMTX
+./mediamtx configs/mediamtx.yml
+
+# Run signaling bridge (requires Node.js)
+cd bridge
+npm install
+node signaling-bridge.js
 ```
 
 ## Related Projects
 
-- [MediaMTX](https://github.com/bluenviron/mediamtx) - The SFU server
-- [VDO.Ninja](https://github.com/steveseguin/vdo.ninja) - P2P WebRTC
-- [OBS Studio](https://obsproject.com/) - WHIP-capable streaming software
+- [VDO.Ninja](https://vdo.ninja) - WebRTC signaling infrastructure
+- [MediaMTX](https://github.com/bluenviron/mediamtx) - Media server
+- [VDO.Ninja SDK](https://github.com/steveseguin/ninjasdk) - JavaScript SDK
 
 ## License
 
-MIT License - See LICENSE file
+MIT
