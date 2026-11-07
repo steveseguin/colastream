@@ -103,6 +103,20 @@ npm install
 node signaling-bridge.js
 ```
 
+## Python Bridge Tests
+
+Install the same dependencies used by the notebook, then run the offline tests
+from the repository root:
+
+```bash
+python -m pip install aiohttp websockets aiortc
+python -m unittest discover -s tests -v
+```
+
+These tests use real aiortc peer connections and create data-channel offers,
+but do not gather ICE candidates or contact signaling, STUN/TURN, or MediaMTX
+servers. They do not validate end-to-end browser or Colab connectivity.
+
 ## Related Projects
 
 - [VDO.Ninja](https://vdo.ninja) - WebRTC signaling infrastructure
