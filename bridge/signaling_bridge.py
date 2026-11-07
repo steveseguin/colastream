@@ -14,7 +14,10 @@ import sys
 import functools
 import aiohttp
 import websockets
-from aiortc import RTCPeerConnection, RTCSessionDescription, RTCDataChannel
+from aiortc import (
+    RTCConfiguration, RTCIceServer, RTCPeerConnection,
+    RTCSessionDescription, RTCDataChannel,
+)
 from aiortc.contrib.signaling import object_to_string, object_from_string
 
 # Force unbuffered output
@@ -83,7 +86,9 @@ class SignalingBridge:
 
     async def create_peer_connection(self, peer_uuid):
         """Create a new WebRTC peer connection"""
-        config = {'iceServers': self.ice_servers} if self.ice_servers else {}
+        config = RTCConfiguration(
+            iceServers=[RTCIceServer(**server) for server in self.ice_servers]
+        ) if self.ice_servers else None
         pc = RTCPeerConnection(configuration=config)
         self.peer_connections[peer_uuid] = pc
 
